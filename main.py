@@ -53,6 +53,17 @@ REPO_SCRIPT_URL = "https://raw.githubusercontent.com/NishVish/PySwiss/main/scrip
 
 # --- Functions ---
 
+def change_scripts_folder():
+    global SCRIPT_DIR
+    new_folder = filedialog.askdirectory(title="Select New Scripts Folder", initialdir=APP_DIR, parent=root)
+    if new_folder:
+        SCRIPT_DIR = new_folder
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            f.write(SCRIPT_DIR)
+        refresh_scripts_list()
+        update_output(f"Scripts folder changed to:\n{SCRIPT_DIR}")
+
+        
 def update_output(text):
     output.config(state="normal")
     output.delete("1.0", tk.END)
@@ -215,6 +226,17 @@ test_btn = tk.Button(toolbar, text="Test File 📄", bg=TEST_ACCENT, fg="white",
 test_btn.pack(side="left", padx=5, pady=5)
 html_btn = tk.Button(toolbar, text="Create HTML 🌐", bg=HTML_ACCENT, fg="white", command=create_html_file, **btn_params)
 html_btn.pack(side="left", padx=5, pady=5)
+
+
+# --- Add Change Scripts Folder Button ---
+change_folder_btn = tk.Button(
+    toolbar, 
+    text="Change Scripts Folder 📂", 
+    bg="#ff5722", fg="white",
+    command=change_scripts_folder, 
+    **btn_params
+)
+change_folder_btn.pack(side="left", padx=5, pady=5)
 
 # --- Paned Window ---
 pw = tk.PanedWindow(root, orient="horizontal", bg="#333", sashwidth=4, sashrelief="flat")
