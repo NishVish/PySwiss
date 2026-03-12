@@ -6,6 +6,8 @@ import os
 import sys
 import threading
 import urllib.request
+import json
+
 
 # --- UI Theme Colors ---
 BG_DARK = "#1e1e1e"
@@ -115,17 +117,39 @@ def run_pyinstaller(file_path):
         update_output(f"Error: {str(e)}")
 
 def setup_scripts_folder():
+    """Download all files from the GitHub script folder into local script directory."""
     os.makedirs(SCRIPT_DIR, exist_ok=True)
-    scripts_to_download = ["example1.py", "example2.py"]  # Replace with your real repo scripts
-    for script_name in scripts_to_download:
-        local_path = os.path.join(SCRIPT_DIR, script_name)
-        if not os.path.exists(local_path):
-            try:
-                url = REPO_SCRIPT_URL + script_name
-                urllib.request.urlretrieve(url, local_path)
-                print(f"Downloaded script: {script_name}")
-            except Exception as e:
-                print(f"Failed to download {script_name}: {e}")
+
+    # GitHub API to list folder contents
+    api_url = "https://api.github.com/repos/NishVish/PySwiss/contents/script"
+
+    try:
+        with urllib.request.urlopen(api_url) as response:
+            files = json.load(response)
+
+        downloaded = []
+        for file in files:
+            name = file.get("name")
+            raw_url = file.get("download_url")
+
+            # Only process files with a raw download URL
+            if raw_url:
+                local_path = os.path.join(SCRIPT_DIR, name)
+
+                # Skip downloading again if file already exists
+                if os.path.exists(local_path):
+                    continue
+
+                urllib.request.urlretrieve(raw_url, local_path)
+                downloaded.append(name)
+
+        if downloaded:
+            print(f"Downloaded scripts: {downloaded}")
+        else:
+            print("Scripts already up‑to‑date.")
+
+    except Exception as e:
+        print(f"Error fetching scripts from GitHub: {e}")
 
 def refresh_scripts_list():
     scripts_listbox.delete(0, tk.END)
