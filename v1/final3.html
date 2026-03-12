@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Progress Dashboard</title>
+<style>
+    body {
+        margin: 0;
+        font-family: 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+        color: #fff;
+    }
+
+    .container {
+        width: 90%;
+        max-width: 1100px;
+        margin: 40px auto;
+    }
+
+    h1 {
+        text-align: center;
+        margin-bottom: 40px;
+        letter-spacing: 2px;
+    }
+
+    .card {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 15px;
+        padding: 20px 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        backdrop-filter: blur(10px);
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+
+    .project-title {
+        font-size: 20px;
+        margin-bottom: 15px;
+        font-weight: bold;
+    }
+
+    .progress-bar {
+        background: rgba(255,255,255,0.2);
+        border-radius: 20px;
+        overflow: hidden;
+        height: 18px;
+        margin-bottom: 15px;
+    }
+
+    .progress {
+        height: 100%;
+        border-radius: 20px;
+        text-align: right;
+        padding-right: 8px;
+        font-size: 12px;
+        font-weight: bold;
+        line-height: 18px;
+    }
+
+    .complete { background: linear-gradient(90deg, #00c853, #64dd17); }
+    .mid { background: linear-gradient(90deg, #ffb300, #ff6f00); }
+    .low { background: linear-gradient(90deg, #ff5252, #d50000); }
+
+    ul {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    li {
+        margin: 6px 0;
+        font-size: 14px;
+    }
+
+    .done { color: #00e676; }
+    .pending { color: #ffab00; }
+
+    .footer {
+        text-align: center;
+        margin-top: 40px;
+        font-size: 14px;
+        opacity: 0.8;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🚀 Project Implementation Dashboard</h1>
+
+    <div class="card">
+        <div class="project-title">QR Badge Printing System</div>
+        <div class="progress-bar">
+            <div class="progress complete" style="width:100%;">100%</div>
+        </div>
+        <ul>
+            <li class="done">✔ QR Code Generation</li>
+            <li class="done">✔ Registration Form</li>
+            <li class="done">✔ Search Interface</li>
+            <li class="done">✔ Badge Printing Interface</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <div class="project-title">Central Database System</div>
+        <div class="progress-bar">
+            <div class="progress mid" style="width:70%;">70%</div>
+        </div>
+        <ul>
+            <li class="done">✔ Database Designing</li>
+            <li class="done">✔ Data Insertion Logic</li>
+            <li class="done">✔ Search & Lead Marking</li>
+            <li class="done">✔ State/City Filtering</li>
+            <li class="pending">⏳ Company Cross-Validation</li>
+            <li class="pending">⏳ Contact Cross-Validation</li>
+            <li class="pending">⏳ Mass Mailing and Whatsapp</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <div class="project-title">Lead Handling (Custom CRM)</div>
+        <div class="progress-bar">
+            <div class="progress mid" style="width:50%;">50%</div>
+        </div>
+        <ul>
+            <li class="done">✔ Marking as Lead</li>
+            <li class="done">✔ Saving Company & Person Details</li>
+            <li class="done">✔ Stall & Amount Management</li>
+            <li class="pending">⏳ Payment Integration</li>
+            <li class="pending">⏳ Invoice & Email Automation</li>
+            <li class="pending">⏳ Inter-Team Workflow</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <div class="project-title">Sphere Internal Communication</div>
+        <div class="progress-bar">
+            <div class="progress low" style="width:30%;">30%</div>
+        </div>
+        <ul>
+            <li class="done">✔ Basic Structure Implemented</li>
+            <li class="pending">⏳ Advanced Workflow Integration</li>
+        </ul>
+    </div>
+	<div class="card">
+		<div class="project-title">Analytics & Insights</div>
+		<div class="progress-bar">
+			<div class="progress low" style="width:0%;">0%</div>
+		</div>
+		<ul>
+			<li class="pending">⏳ Exhibitor Retention Analysis (Regular Participants)</li>
+			<li class="pending">⏳ New Gains / Market Expansion Tracking</li>
+			<li class="pending">⏳ Lead Conversion Funnel Analysis</li>
+			<li class="pending">⏳ Revenue Per Event Dashboard</li>
+			<li class="pending">⏳ Sales Performance Analytics</li>
+			<li class="pending">⏳ Real-time Management Reporting Dashboard</li>
+		</ul>
+	</div>
+
+    <div class="footer">
+        Junior Data Analyst / Technical Lead • System Migration • Automation • CRM Development
+    </div>
+</div>
+
+</body>
+</html>

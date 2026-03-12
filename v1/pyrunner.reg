@@ -1,0 +1,9 @@
+Windows Registry Editor Version 5.00
+
+; 1. Add to right-click menu for all .py files
+[HKEY_CLASSES_ROOT\SystemFileAssociations\.py\shell\OpenWithPyRunner]
+@="Open with PyRunner"
+"Icon"="C:\\Windows\\System32\\shell32.dll,26"
+
+[HKEY_CLASSES_ROOT\SystemFileAssociations\.py\shell\OpenWithPyRunner\command]
+@="python \"D:\\Software\\Projects\\Code Runner\\pyrunner.py\" \"%1\""
