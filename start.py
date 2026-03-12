@@ -44,7 +44,7 @@ def setup():
         urllib.request.urlretrieve(MAIN_URL, MAIN_PY)
 
         with open(RUN_CMD, "w") as f:
-            f.write('@echo off\n"%~dp0start.exe" %*')
+            f.write(f'@echo off\npython "%~dp0main.py" %*')
 
         # Add right click menu
         key = r"Software\Classes\*\shell\PySwiss"
