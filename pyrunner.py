@@ -5,6 +5,9 @@ import tempfile
 import os
 import sys
 import threading
+import urllib.request
+import json
+# Global variable for FTP server folder
 
 # --- UI Theme Colors ---
 BG_DARK = "#1e1e1e"
@@ -13,35 +16,21 @@ BG_TOOLBAR = "#2d2d2d"
 FG_TEXT = "#d4d4d4"
 ACCENT = "#007acc"
 EXE_ACCENT = "#28a745"
-TEST_ACCENT = "#6a1b9a"  # Purple for Test File button
-HTML_ACCENT = "#ff6f00"  # Orange for HTML file
+TEST_ACCENT = "#6a1b9a"
+HTML_ACCENT = "#ff6f00"
 OUTPUT_FG = "#9cdcfe"
 
-# Global variable to track the currently open file
+# --- Project and Script Folder ---
+project_dir = os.getcwd()
+FTP_FOLDER = project_dir  # default to current project directory
+
+LAUNCHER_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
+SCRIPT_DIR = os.path.join(LAUNCHER_DIR, "script")
+REPO_SCRIPT_URL = "https://raw.githubusercontent.com/NishVish/PySwiss/main/script/"
+
+# Global variable
 current_open_file = None
-project_dir = os.getcwd()  # Default project directory
-SCRIPT_DIR = os.path.join(project_dir, "script")  # Folder for scripts
 
-def setup_scripts_folder():
-    """Ensure the script folder exists and populate it from the repo."""
-    os.makedirs(SCRIPT_DIR, exist_ok=True)
-
-    # List of scripts in the repo to download
-    scripts_to_download = ["example1.py", "example2.py"]  # Replace with actual repo scripts
-
-    for script_name in scripts_to_download:
-        local_path = os.path.join(SCRIPT_DIR, script_name)
-        if not os.path.exists(local_path):
-            try:
-                url = REPO_SCRIPT_URL + script_name
-                urllib.request.urlretrieve(url, local_path)
-                # update_output may not exist yet, so just print for now
-                print(f"Downloaded script: {script_name}")
-            except Exception as e:
-                print(f"Failed to download {script_name}: {e}")
-
-
-                
 # --- Functions ---
 def update_output(text):
     output.config(state="normal")
@@ -52,14 +41,23 @@ def update_output(text):
 
 def run_code(event=None):
     code = editor.get("1.0", tk.END)
+    
+    # --- INJECT GLOBAL VARIABLES ---
+    # We create a header string that defines FTP_FOLDER inside the guest script.
+    # repr() ensures that if the path has backslashes (like C:\Users), they are escaped.
+    injection = f"FTP_FOLDER = {repr(FTP_FOLDER)}\n"
+    full_code = injection + code
+    
     with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w", encoding="utf-8") as temp:
-        temp.write(code)
+        temp.write(full_code)
         temp_path = temp.name
     try:
-        result = subprocess.run([sys.executable, temp_path], capture_output=True, text=True, encoding="utf-8")
+        # We pass sys.executable to ensure it uses the same Python version as the IDE
+        result = subprocess.run([sys.executable, temp_path], capture_output=True, text=True)
         update_output(result.stdout + (f"\n--- ERRORS ---\n{result.stderr}" if result.stderr else ""))
     finally:
-        if os.path.exists(temp_path): os.remove(temp_path)
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 def save_file(event=None):
     global current_open_file
@@ -74,7 +72,6 @@ def save_file(event=None):
             save_file()
 
 def create_test_file():
-    """Creates test.txt in project directory."""
     file_path = os.path.join(project_dir, "test.txt")
     try:
         with open(file_path, "w", encoding="utf-8") as f:
@@ -88,18 +85,15 @@ def create_test_file():
         messagebox.showerror("Error", f"Could not create file: {e}")
 
 def create_html_file():
-    """Creates an HTML file from editor content."""
     html_code = editor.get("1.0", tk.END).strip()
     if not html_code:
         messagebox.showwarning("Empty Editor", "Please paste some HTML before creating a file.")
         return
-
     file_name = simpledialog.askstring("File Name", "Enter HTML file name (without .html):")
     if not file_name:
         return
     if not file_name.lower().endswith(".html"):
         file_name += ".html"
-
     file_path = os.path.join(project_dir, file_name)
     try:
         with open(file_path, "w", encoding="utf-8") as f:
@@ -115,7 +109,6 @@ def make_exe():
     if not code:
         messagebox.showwarning("Empty Editor", "Please write some code before building an EXE.")
         return
-
     file_path = filedialog.asksaveasfilename(defaultextension=".py", filetypes=[("Python Files", "*.py")])
     if file_path:
         with open(file_path, "w", encoding="utf-8") as f:
@@ -134,13 +127,94 @@ def run_pyinstaller(file_path):
     except Exception as e:
         update_output(f"Error: {str(e)}")
 
+
+def add_new_script():
+    """Open a dialog to create a new Python script and add it to the script folder."""
+    script_name = simpledialog.askstring("Script Name", "Enter the new script name (without .py):")
+    if not script_name:
+        return
+    
+    if not script_name.lower().endswith(".py"):
+        script_name += ".py"
+    
+    script_path = os.path.join(SCRIPT_DIR, script_name)
+    
+    # Create the file with an empty script template
+    try:
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write("# New Python Script\n\n# Write your code here...\n")
+        refresh_scripts_list()  # Refresh the list of scripts to include the new script
+        update_output(f"Successfully created new script: {script_path}")
+        messagebox.showinfo("Success", f"New script created: {script_path}")
+    except Exception as e:
+        update_output(f"Error creating script: {e}")
+        messagebox.showerror("Error", f"Could not create script: {e}")
+
+
+def setup_scripts_folder():
+    """Download all files from the GitHub script folder into local script directory."""
+    os.makedirs(SCRIPT_DIR, exist_ok=True)
+
+    # GitHub API to list folder contents
+    api_url = "https://api.github.com/repos/NishVish/PySwiss/contents/script"
+
+    try:
+        with urllib.request.urlopen(api_url) as response:
+            files = json.load(response)
+
+        downloaded = []
+        for file in files:
+            name = file.get("name")
+            raw_url = file.get("download_url")
+
+            # Only process files with a raw download URL
+            if raw_url:
+                local_path = os.path.join(SCRIPT_DIR, name)
+
+                # Skip downloading again if file already exists
+                if os.path.exists(local_path):
+                    continue
+
+                urllib.request.urlretrieve(raw_url, local_path)
+                downloaded.append(name)
+
+        if downloaded:
+            print(f"Downloaded scripts: {downloaded}")
+        else:
+            print("Scripts already up‑to‑date.")
+
+    except Exception as e:
+        print(f"Error fetching scripts from GitHub: {e}")
+
+def refresh_scripts_list():
+    scripts_listbox.delete(0, tk.END)
+    os.makedirs(SCRIPT_DIR, exist_ok=True)
+    for file in os.listdir(SCRIPT_DIR):
+        if file.endswith(".py"):
+            scripts_listbox.insert(tk.END, file)
+
+def load_selected_script(event):
+    selection = scripts_listbox.curselection()
+    if selection:
+        file_name = scripts_listbox.get(selection[0])
+        file_path = os.path.join(SCRIPT_DIR, file_name)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                editor.delete("1.0", tk.END)
+                editor.insert(tk.END, f.read())
+            global current_open_file
+            current_open_file = file_path
+            root.title(f"PyRunner - {file_name}")
+        except Exception as e:
+            update_output(f"Error loading file: {e}")
+
 # --- Root Window ---
 root = tk.Tk()
 root.title("Python IDE & HTML/EXE Creator")
 root.geometry("1200x700")
 root.configure(bg=BG_DARK)
 
-# --- Toolbar ---
+# --- Toolbar --- 
 toolbar = tk.Frame(root, bg=BG_TOOLBAR, height=40)
 toolbar.pack(side="top", fill="x")
 btn_params = {"relief": "flat", "font": ("Segoe UI", 9), "padx": 15}
@@ -160,51 +234,25 @@ test_btn.pack(side="left", padx=5, pady=5)
 html_btn = tk.Button(toolbar, text="Create HTML 🌐", bg=HTML_ACCENT, fg="white", command=create_html_file, **btn_params)
 html_btn.pack(side="left", padx=5, pady=5)
 
-# --- Paned Window Layout ---
+# New button to add a new script
+new_script_btn = tk.Button(toolbar, text="New Script ✍️", bg=ACCENT, fg="white", command=add_new_script, **btn_params)
+new_script_btn.pack(side="left", padx=5, pady=5)
+
+
+# --- Paned Window ---
 pw = tk.PanedWindow(root, orient="horizontal", bg="#333", sashwidth=4, sashrelief="flat")
 pw.pack(fill="both", expand=True)
-
 
 # --- Scripts Side Panel ---
 scripts_frame = tk.Frame(pw, bg="#252526", width=200)
 scripts_label = tk.Label(scripts_frame, text="Scripts", bg="#252526", fg="white", font=("Segoe UI", 10, "bold"))
 scripts_label.pack(anchor="nw", padx=10, pady=5)
-
-scripts_listbox = tk.Listbox(scripts_frame, bg="#333", fg="white", font=("Consolas", 10), selectbackground=ACCENT,
-                             activestyle="none", borderwidth=0, highlightthickness=0)
+scripts_listbox = tk.Listbox(scripts_frame, bg="#333", fg="white", font=("Consolas", 10),
+                             selectbackground=ACCENT, activestyle="none", borderwidth=0, highlightthickness=0)
 scripts_listbox.pack(fill="both", expand=True, padx=5, pady=5)
-
-def refresh_scripts_list():
-    scripts_listbox.delete(0, tk.END)
-    scripts_dir = os.path.join(project_dir, "script")
-    os.makedirs(scripts_dir, exist_ok=True)
-    for file in os.listdir(scripts_dir):
-        if file.endswith(".py"):
-            scripts_listbox.insert(tk.END, file)
-
-def load_selected_script(event):
-    selection = scripts_listbox.curselection()
-    if selection:
-        file_name = scripts_listbox.get(selection[0])
-        file_path = os.path.join(project_dir, "script", file_name)
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                editor.delete("1.0", tk.END)
-                editor.insert(tk.END, f.read())
-            global current_open_file
-            current_open_file = file_path
-            root.title(f"PyRunner - {file_name}")
-        except Exception as e:
-            update_output(f"Error loading file: {e}")
-
 scripts_listbox.bind("<<ListboxSelect>>", load_selected_script)
 
-# Initial population
-# After scripts_listbox, editor, and output are created
-setup_scripts_folder()
-refresh_scripts_list()  # Populate the side panel
-
-
+# --- Editor and Output ---
 editor_frame = tk.Frame(pw, bg=BG_DARK)
 editor = tk.Text(editor_frame, wrap="none", font=("Consolas", 11), bg=BG_DARK, fg=FG_TEXT,
                  insertbackground="white", padx=15, pady=15, borderwidth=0, undo=True)
@@ -219,7 +267,11 @@ pw.add(scripts_frame, width=200)
 pw.add(editor_frame, width=700)
 pw.add(output_frame, width=500)
 
-# --- Handle command line arguments ---
+# --- Setup Scripts after widgets exist ---
+setup_scripts_folder()
+refresh_scripts_list()
+
+# --- Handle command-line arguments ---
 if len(sys.argv) > 1:
     clicked_file = sys.argv[1]
     if os.path.isfile(clicked_file):

@@ -127,6 +127,30 @@ def run_pyinstaller(file_path):
     except Exception as e:
         update_output(f"Error: {str(e)}")
 
+
+def add_new_script():
+    """Open a dialog to create a new Python script and add it to the script folder."""
+    script_name = simpledialog.askstring("Script Name", "Enter the new script name (without .py):")
+    if not script_name:
+        return
+    
+    if not script_name.lower().endswith(".py"):
+        script_name += ".py"
+    
+    script_path = os.path.join(SCRIPT_DIR, script_name)
+    
+    # Create the file with an empty script template
+    try:
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write("# New Python Script\n\n# Write your code here...\n")
+        refresh_scripts_list()  # Refresh the list of scripts to include the new script
+        update_output(f"Successfully created new script: {script_path}")
+        messagebox.showinfo("Success", f"New script created: {script_path}")
+    except Exception as e:
+        update_output(f"Error creating script: {e}")
+        messagebox.showerror("Error", f"Could not create script: {e}")
+
+
 def setup_scripts_folder():
     """Download all files from the GitHub script folder into local script directory."""
     os.makedirs(SCRIPT_DIR, exist_ok=True)
@@ -190,21 +214,30 @@ root.title("Python IDE & HTML/EXE Creator")
 root.geometry("1200x700")
 root.configure(bg=BG_DARK)
 
-# --- Toolbar ---
+# --- Toolbar --- 
 toolbar = tk.Frame(root, bg=BG_TOOLBAR, height=40)
 toolbar.pack(side="top", fill="x")
 btn_params = {"relief": "flat", "font": ("Segoe UI", 9), "padx": 15}
 
 run_btn = tk.Button(toolbar, text="Run ▶", bg=ACCENT, fg="white", command=run_code, **btn_params)
 run_btn.pack(side="left", padx=5, pady=5)
+
 save_btn = tk.Button(toolbar, text="Save 💾", bg=BG_DARK, fg=FG_TEXT, command=save_file, **btn_params)
 save_btn.pack(side="left", padx=5, pady=5)
+
 exe_btn = tk.Button(toolbar, text="Build EXE 📦", bg=EXE_ACCENT, fg="white", command=make_exe, **btn_params)
 exe_btn.pack(side="left", padx=5, pady=5)
+
 test_btn = tk.Button(toolbar, text="Test File 📄", bg=TEST_ACCENT, fg="white", command=create_test_file, **btn_params)
 test_btn.pack(side="left", padx=5, pady=5)
+
 html_btn = tk.Button(toolbar, text="Create HTML 🌐", bg=HTML_ACCENT, fg="white", command=create_html_file, **btn_params)
 html_btn.pack(side="left", padx=5, pady=5)
+
+# New button to add a new script
+new_script_btn = tk.Button(toolbar, text="New Script ✍️", bg=ACCENT, fg="white", command=add_new_script, **btn_params)
+new_script_btn.pack(side="left", padx=5, pady=5)
+
 
 # --- Paned Window ---
 pw = tk.PanedWindow(root, orient="horizontal", bg="#333", sashwidth=4, sashrelief="flat")

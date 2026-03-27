@@ -1,19 +1,13 @@
-import os
-import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 import subprocess
 import tempfile
+import os
+import sys
 import threading
 import urllib.request
 import json
-
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(APP_DIR, "config.txt")
-
-# --- Root Window must exist first ---
-root = tk.Tk()
-root.withdraw()  # hide window while selecting folder
+# Global variable for FTP server folder
 
 # --- UI Theme Colors ---
 BG_DARK = "#1e1e1e"
@@ -26,44 +20,18 @@ TEST_ACCENT = "#6a1b9a"
 HTML_ACCENT = "#ff6f00"
 OUTPUT_FG = "#9cdcfe"
 
+# --- Project and Script Folder ---
+project_dir = os.getcwd()
+FTP_FOLDER = project_dir  # default to current project directory
+
+LAUNCHER_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
+SCRIPT_DIR = os.path.join(LAUNCHER_DIR, "script")
+REPO_SCRIPT_URL = "https://raw.githubusercontent.com/NishVish/PySwiss/main/script/"
+
 # Global variable
 current_open_file = None
 
-# Function to get or set the scripts folder
-def get_script_folder(root):
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            folder = f.read().strip()
-            if os.path.exists(folder):
-                return folder
-
-    folder = filedialog.askdirectory(title="Select Scripts Folder", initialdir=APP_DIR, parent=root)
-    if not folder:
-        messagebox.showerror("Error", "No folder selected. Exiting.", parent=root)
-        sys.exit()
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        f.write(folder)
-    return folder
-
-# --- Project and Script Folder ---
-project_dir = os.getcwd()
-SCRIPT_DIR = get_script_folder(root)
-
-REPO_SCRIPT_URL = "https://raw.githubusercontent.com/NishVish/PySwiss/main/script/"
-
 # --- Functions ---
-
-def change_scripts_folder():
-    global SCRIPT_DIR
-    new_folder = filedialog.askdirectory(title="Select New Scripts Folder", initialdir=APP_DIR, parent=root)
-    if new_folder:
-        SCRIPT_DIR = new_folder
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            f.write(SCRIPT_DIR)
-        refresh_scripts_list()
-        update_output(f"Scripts folder changed to:\n{SCRIPT_DIR}")
-
-        
 def update_output(text):
     output.config(state="normal")
     output.delete("1.0", tk.END)
@@ -73,10 +41,18 @@ def update_output(text):
 
 def run_code(event=None):
     code = editor.get("1.0", tk.END)
+    
+    # --- INJECT GLOBAL VARIABLES ---
+    # We create a header string that defines FTP_FOLDER inside the guest script.
+    # repr() ensures that if the path has backslashes (like C:\Users), they are escaped.
+    injection = f"FTP_FOLDER = {repr(FTP_FOLDER)}\n"
+    full_code = injection + code
+    
     with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w", encoding="utf-8") as temp:
-        temp.write(code)
+        temp.write(full_code)
         temp_path = temp.name
     try:
+        # We pass sys.executable to ensure it uses the same Python version as the IDE
         result = subprocess.run([sys.executable, temp_path], capture_output=True, text=True)
         update_output(result.stdout + (f"\n--- ERRORS ---\n{result.stderr}" if result.stderr else ""))
     finally:
@@ -93,9 +69,7 @@ def save_file(event=None):
         file_path = filedialog.asksaveasfilename(defaultextension=".py", filetypes=[("Python Files", "*.py")])
         if file_path:
             current_open_file = file_path
-            with open(current_open_file, "w", encoding="utf-8") as f:
-                f.write(editor.get("1.0", tk.END).strip())
-            root.title(f"PyRunner - {os.path.basename(current_open_file)} (Saved)")
+            save_file()
 
 def create_test_file():
     file_path = os.path.join(project_dir, "test.txt")
@@ -153,10 +127,35 @@ def run_pyinstaller(file_path):
     except Exception as e:
         update_output(f"Error: {str(e)}")
 
+
+def add_new_script():
+    """Open a dialog to create a new Python script and add it to the script folder."""
+    script_name = simpledialog.askstring("Script Name", "Enter the new script name (without .py):")
+    if not script_name:
+        return
+    
+    if not script_name.lower().endswith(".py"):
+        script_name += ".py"
+    
+    script_path = os.path.join(SCRIPT_DIR, script_name)
+    
+    # Create the file with an empty script template
+    try:
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write("# New Python Script\n\n# Write your code here...\n")
+        refresh_scripts_list()  # Refresh the list of scripts to include the new script
+        update_output(f"Successfully created new script: {script_path}")
+        messagebox.showinfo("Success", f"New script created: {script_path}")
+    except Exception as e:
+        update_output(f"Error creating script: {e}")
+        messagebox.showerror("Error", f"Could not create script: {e}")
+
+
 def setup_scripts_folder():
     """Download all files from the GitHub script folder into local script directory."""
     os.makedirs(SCRIPT_DIR, exist_ok=True)
 
+    # GitHub API to list folder contents
     api_url = "https://api.github.com/repos/NishVish/PySwiss/contents/script"
 
     try:
@@ -168,10 +167,14 @@ def setup_scripts_folder():
             name = file.get("name")
             raw_url = file.get("download_url")
 
+            # Only process files with a raw download URL
             if raw_url:
                 local_path = os.path.join(SCRIPT_DIR, name)
+
+                # Skip downloading again if file already exists
                 if os.path.exists(local_path):
                     continue
+
                 urllib.request.urlretrieve(raw_url, local_path)
                 downloaded.append(name)
 
@@ -205,38 +208,36 @@ def load_selected_script(event):
         except Exception as e:
             update_output(f"Error loading file: {e}")
 
-
-root.deiconify()  # Show main window after folder selection
+# --- Root Window ---
+root = tk.Tk()
 root.title("Python IDE & HTML/EXE Creator")
 root.geometry("1200x700")
 root.configure(bg=BG_DARK)
 
-# --- Toolbar ---
+# --- Toolbar --- 
 toolbar = tk.Frame(root, bg=BG_TOOLBAR, height=40)
 toolbar.pack(side="top", fill="x")
 btn_params = {"relief": "flat", "font": ("Segoe UI", 9), "padx": 15}
 
 run_btn = tk.Button(toolbar, text="Run ▶", bg=ACCENT, fg="white", command=run_code, **btn_params)
 run_btn.pack(side="left", padx=5, pady=5)
+
 save_btn = tk.Button(toolbar, text="Save 💾", bg=BG_DARK, fg=FG_TEXT, command=save_file, **btn_params)
 save_btn.pack(side="left", padx=5, pady=5)
+
 exe_btn = tk.Button(toolbar, text="Build EXE 📦", bg=EXE_ACCENT, fg="white", command=make_exe, **btn_params)
 exe_btn.pack(side="left", padx=5, pady=5)
+
 test_btn = tk.Button(toolbar, text="Test File 📄", bg=TEST_ACCENT, fg="white", command=create_test_file, **btn_params)
 test_btn.pack(side="left", padx=5, pady=5)
+
 html_btn = tk.Button(toolbar, text="Create HTML 🌐", bg=HTML_ACCENT, fg="white", command=create_html_file, **btn_params)
 html_btn.pack(side="left", padx=5, pady=5)
 
+# New button to add a new script
+new_script_btn = tk.Button(toolbar, text="New Script ✍️", bg=ACCENT, fg="white", command=add_new_script, **btn_params)
+new_script_btn.pack(side="left", padx=5, pady=5)
 
-# --- Add Change Scripts Folder Button ---
-change_folder_btn = tk.Button(
-    toolbar, 
-    text="Change Scripts Folder 📂", 
-    bg="#ff5722", fg="white",
-    command=change_scripts_folder, 
-    **btn_params
-)
-change_folder_btn.pack(side="left", padx=5, pady=5)
 
 # --- Paned Window ---
 pw = tk.PanedWindow(root, orient="horizontal", bg="#333", sashwidth=4, sashrelief="flat")
@@ -291,5 +292,4 @@ if len(sys.argv) > 1:
 root.bind("<Control-Return>", run_code)
 root.bind("<Control-s>", save_file)
 
-# --- Start Mainloop ---
 root.mainloop()
