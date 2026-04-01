@@ -1,0 +1,7 @@
+Windows Registry Editor Version 5.00
+
+; Remove "Open with Antigravity"
+[-HKEY_CLASSES_ROOT\Directory\Background\shell\OpenWithAntigravity]
+
+; Remove "Open Antigravity"
+[-HKEY_CLASSES_ROOT\Directory\Background\shell\OpenAntigravity]
